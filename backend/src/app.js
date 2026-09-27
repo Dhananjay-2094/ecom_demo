@@ -10,7 +10,7 @@ app.use(cors({
     'https://ecom-demo-6ory.vercel.app'
   ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'idempotency-key']
 }));
 
 // Hide Express's version header from API responses.
