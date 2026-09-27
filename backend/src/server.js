@@ -6,7 +6,8 @@ const cors = require("cors");
 app.use(cors({
   origin: [
     "http://localhost:4200",
-    "https://ecom-demo-blush-six.vercel.app"
+    "https://ecom-demo-blush-six.vercel.app",
+    "https://ecom-demo-6ory.vercel.app"
   ]
 }));
 // Start accepting API requests on the configured port.
