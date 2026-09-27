@@ -1,6 +1,17 @@
 const express = require('express');
 const { ApiError } = require('./lib/errors');
 const app = express();
+const cors = require('cors');
+
+app.use(cors({
+  origin: [
+    'http://localhost:4200',
+    'https://ecom-demo-blush-six.vercel.app',
+    'https://ecom-demo-6ory.vercel.app'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Hide Express's version header from API responses.
 app.disable('x-powered-by');
