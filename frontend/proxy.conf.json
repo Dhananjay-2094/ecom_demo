@@ -1,6 +1,6 @@
 {
   "/api": {
-    "target": "http://localhost:3000",
+    "target": "https://ecom-demo-899n.onrender.com",
     "secure": false,
     "changeOrigin": true
   }
