@@ -1,0 +1,184 @@
+<div class="app-shell">
+  <!-- Shared navigation switches between the customer storefront and admin tools. -->
+  <header class="topbar">
+    <a class="brand" href="#" (click)="$event.preventDefault(); view = 'shop'">
+      <span class="brand-mark">S</span>
+      <span>softgoods<span class="brand-dot">.</span></span>
+    </a>
+    <nav class="top-actions" aria-label="Main navigation">
+      <button class="nav-button" [class.active]="view === 'shop'" (click)="view = 'shop'">Shop</button>
+      <button class="nav-button" [class.active]="view === 'admin'" (click)="openAdmin()">Admin</button>
+      <button class="bag-button" (click)="view = 'shop'; scrollToBag()">
+        Bag <span class="bag-count">{{ cart?.items?.length || 0 }}</span>
+      </button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Show success messages and API errors without navigating away. -->
+    <div class="notice" *ngIf="message" role="status">
+      <span>{{ message }}</span>
+      <button aria-label="Dismiss message" (click)="message = ''">×</button>
+    </div>
+
+    <!-- Customer view: product catalog, cart editing, coupon entry, and checkout. -->
+    <section *ngIf="view === 'shop'" class="shop-view">
+      <!-- Intro banner for the product collection. -->
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">Thoughtful things for everyday</span>
+          <h1>Good design.<br /><em>Better everyday.</em></h1>
+          <p>Useful objects, made to bring a little more joy to your daily rituals.</p>
+          <a href="#catalog" class="primary-link">Explore the collection <span>↘</span></a>
+        </div>
+        <div class="hero-art" aria-label="Decorative product illustration">
+          <div class="art-sun"></div><div class="art-orbit"></div>
+          <div class="art-vase"><div class="vase-neck"></div><div class="vase-body"></div></div>
+          <div class="art-leaf leaf-one"></div><div class="art-leaf leaf-two"></div>
+          <div class="art-caption">OBJECTS FOR SLOWER MORNINGS</div>
+        </div>
+      </section>
+
+      <!-- Active products are loaded from the public catalog endpoint. -->
+      <section class="catalog-section" id="catalog">
+        <div class="section-heading">
+          <div><span class="eyebrow">The collection</span><h2>Made for your day</h2></div>
+          <span class="muted" *ngIf="!loading">{{ products.length }} pieces</span>
+        </div>
+        <div class="product-grid" *ngIf="!loading; else loadingState">
+          <article class="product-card" *ngFor="let product of products; let i = index">
+            <div class="product-art" [attr.data-tone]="i % 5">
+              <span class="product-index">0{{ i + 1 }}</span>
+              <div class="product-shape" [attr.data-shape]="i % 5"></div>
+              <span class="stock-pill" [class.low-stock]="product.inventory < 5">
+                {{ product.inventory < 5 ? 'Only ' + product.inventory + ' left' : 'In stock' }}
+              </span>
+            </div>
+            <div class="product-info">
+              <div><h3>{{ product.name }}</h3><p class="product-category">Everyday essential</p></div>
+              <strong>{{ money(product.unitPriceMinor) }}</strong>
+            </div>
+            <div class="product-buy">
+              <label class="sr-only" [for]="'qty-' + product.id">Quantity</label>
+              <input [id]="'qty-' + product.id" type="number" min="1" [max]="product.inventory" [(ngModel)]="quantities[product.id]" />
+              <button class="add-button" [disabled]="busy || product.inventory < 1" (click)="add(product)">
+                {{ product.inventory < 1 ? 'Sold out' : 'Add to bag' }} <span>＋</span>
+              </button>
+            </div>
+          </article>
+        </div>
+        <ng-template #loadingState><div class="loading-card">Loading the collection…</div></ng-template>
+      </section>
+
+      <!-- Cart totals and checkout controls reflect backend cart state. -->
+      <section class="bag-section" id="bag">
+        <div class="section-heading">
+          <div><span class="eyebrow">Your selection</span><h2>Your bag</h2></div>
+          <button class="text-button" *ngIf="cart?.items?.length" (click)="newCart()">Start a fresh cart</button>
+        </div>
+        <div class="bag-layout" *ngIf="cart as activeCart">
+          <div class="bag-items" *ngIf="activeCart.items.length; else emptyBag">
+            <div class="bag-item" *ngFor="let item of activeCart.items">
+              <div class="bag-thumbnail">{{ item.name.charAt(0) }}</div>
+              <div class="bag-item-main"><h3>{{ item.name }}</h3><p>{{ money(item.unitPriceMinor) }} each</p></div>
+              <input class="quantity-input" aria-label="Item quantity" type="number" min="1" [max]="item.availableInventory" [ngModel]="item.quantity" (ngModelChange)="item.quantity = $event" (change)="updateQuantity(item.productId, item.quantity)" />
+              <strong class="line-total">{{ money(item.lineTotalMinor) }}</strong>
+              <button class="remove-button" aria-label="Remove item" (click)="removeItem(item.productId)">×</button>
+            </div>
+          </div>
+          <ng-template #emptyBag><div class="empty-bag"><span>✳</span><h3>Your bag is taking a breath.</h3><p>Add something lovely from the collection.</p></div></ng-template>
+
+          <aside class="checkout-card">
+            <span class="eyebrow">Order summary</span>
+            <div class="summary-row"><span>Subtotal</span><strong>{{ money(activeCart.subtotalMinor) }}</strong></div>
+            <p class="summary-note">Discount is applied at checkout. Shipping and tax are not included.</p>
+            <label class="field-label" for="coupon">Have a coupon?</label>
+            <input id="coupon" class="text-input" placeholder="Enter coupon code" [(ngModel)]="couponCode" />
+            <button class="checkout-button" [disabled]="busy || !activeCart.items.length" (click)="checkout()">
+              {{ busy ? 'Working…' : 'Place order' }} <span>→</span>
+            </button>
+            <p class="secure-note">Checkout is simulated for this demo.</p>
+          </aside>
+        </div>
+        <article class="order-success" *ngIf="order as placedOrder">
+          <div class="success-icon">✓</div><div><span class="eyebrow">Order placed</span><h3>Thank you for your order.</h3>
+            <p>Order {{ placedOrder.id }} · Total {{ money(placedOrder.totalMinor) }}</p>
+            <p *ngIf="placedOrder.discountMinor">Coupon {{ placedOrder.couponCode }} saved you {{ money(placedOrder.discountMinor) }}.</p>
+          </div>
+          <button class="outline-button" (click)="newCart()">Keep shopping</button>
+        </article>
+      </section>
+    </section>
+
+    <!-- Admin view: catalog/stock controls, rewards, and read-only sales data. -->
+    <section *ngIf="view === 'admin'" class="admin-view">
+      <div class="admin-heading">
+        <div><span class="eyebrow">Store controls</span><h1>Admin dashboard</h1><p>Manage products, stock, rewards, and store performance.</p></div>
+        <button class="outline-button" (click)="loadAdmin()" [disabled]="busy">↻ Refresh data</button>
+      </div>
+
+      <!-- Summary metrics come from the admin reporting endpoint. -->
+      <section class="metrics-grid" *ngIf="report as stats">
+        <article class="metric-card"><span>Total orders</span><strong>{{ stats.totalOrders }}</strong><small>Successful checkouts</small></article>
+        <article class="metric-card"><span>Gross revenue</span><strong>{{ money(stats.grossRevenueMinor) }}</strong><small>Before discounts</small></article>
+        <article class="metric-card"><span>Discounts</span><strong>{{ money(stats.totalDiscountsMinor) }}</strong><small>Granted to customers</small></article>
+        <article class="metric-card highlight-metric"><span>Net revenue</span><strong>{{ money(stats.netRevenueMinor) }}</strong><small>After discounts</small></article>
+      </section>
+
+      <!-- Admin forms create, edit, retire, and restock products. -->
+      <section class="admin-panel">
+        <div class="panel-heading"><div><span class="eyebrow">Catalog</span><h2>Products & inventory</h2></div></div>
+        <form class="create-product-form" (ngSubmit)="createProduct()">
+          <input class="text-input" required placeholder="Product name" name="newName" [(ngModel)]="productDraft.name" />
+          <label class="number-field"><span>Price in minor units</span><input class="text-input" required min="0" type="number" name="newPrice" [(ngModel)]="productDraft.unitPriceMinor" /></label>
+          <label class="number-field"><span>Starting stock</span><input class="text-input" required min="0" type="number" name="newStock" [(ngModel)]="productDraft.inventory" /></label>
+          <button class="primary-button" [disabled]="busy">Add product</button>
+        </form>
+        <div class="table-wrap">
+          <table><thead><tr><th>Product</th><th>Price</th><th>Available</th><th>Status</th><th>Save catalog</th><th>Adjust stock</th><th></th></tr></thead>
+            <tbody><tr *ngFor="let product of adminProducts">
+              <td><input class="table-input product-name-input" [(ngModel)]="drafts[product.id].name" [name]="'name-' + product.id" /></td>
+              <td><input class="table-input price-input" type="number" min="0" [(ngModel)]="drafts[product.id].unitPriceMinor" [name]="'price-' + product.id" /></td>
+              <td><span class="stock-number">{{ product.inventory }}</span></td>
+              <td><span class="status-pill" [class.retired]="!product.active">{{ product.active ? 'Active' : 'Retired' }}</span></td>
+              <td><button class="small-button" (click)="saveProduct(product)" [disabled]="busy">Save</button></td>
+              <td><div class="stock-controls"><input class="table-input stock-input" type="number" [(ngModel)]="inventoryChanges[product.id]" [name]="'stock-' + product.id" /><button class="small-button" (click)="adjustStock(product)" [disabled]="busy">Apply</button></div></td>
+              <td><button class="small-button danger-button" (click)="retireProduct(product)" [disabled]="busy || !product.active">Retire</button></td>
+            </tr></tbody>
+          </table>
+        </div>
+        <p class="panel-footnote">Inventory changes use a signed amount: positive adds stock, negative removes it. Price is in minor units (for example, 1299 = 12.99).</p>
+        <div class="stock-reason"><label for="reason">Reason for stock changes</label><input id="reason" class="text-input" [(ngModel)]="inventoryReason" /></div>
+      </section>
+
+      <!-- Coupon actions use the admin coupon endpoints. -->
+      <section class="admin-panel rewards-panel">
+        <div class="panel-heading"><div><span class="eyebrow">Customer rewards</span><h2>Coupons</h2><p>Generate the next eligible milestone coupon or cancel an unused one.</p></div>
+          <button class="primary-button" (click)="generateCoupon()" [disabled]="busy">Generate eligible coupon <span>＋</span></button>
+        </div>
+        <div class="coupon-stats" *ngIf="report as stats"><span><b>{{ stats.coupons.generated }}</b> generated</span><span><b>{{ stats.coupons.available }}</b> available</span><span><b>{{ stats.coupons.redeemed }}</b> redeemed</span><span><b>{{ stats.coupons.cancelled || 0 }}</b> cancelled</span></div>
+        <div class="coupon-list" *ngIf="coupons.length; else noCoupons">
+          <div class="coupon-row" *ngFor="let coupon of coupons">
+            <div class="coupon-badge">%</div><div class="coupon-details"><strong>{{ coupon.code }}</strong><span>{{ coupon.discountPercent }}% off · milestone {{ coupon.milestoneOrderCount }}</span></div>
+            <span class="status-pill" [class.redeemed]="coupon.status === 'redeemed'" [class.retired]="coupon.status === 'cancelled'">{{ coupon.status }}</span>
+            <button class="small-button danger-button" *ngIf="coupon.status === 'available'" (click)="cancelCoupon(coupon)" [disabled]="busy">Cancel</button>
+          </div>
+        </div>
+        <ng-template #noCoupons><div class="empty-inline">No coupons generated yet.</div></ng-template>
+      </section>
+
+      <!-- Product quantities sold are listed from the report response. -->
+      <section class="admin-panel report-panel">
+        <div class="panel-heading"><div><span class="eyebrow">Sales report</span><h2>Best sellers</h2></div></div>
+        <div class="report-list" *ngIf="report?.quantityByProduct?.length; else noSales">
+          <div class="report-row" *ngFor="let item of report?.quantityByProduct"><span>{{ item.productName }}</span><strong>{{ item.quantity }} sold</strong></div>
+        </div>
+        <ng-template #noSales><div class="empty-inline">No completed orders yet.</div></ng-template>
+      </section>
+      <p class="admin-disclaimer">Demo admin tools are not protected by authentication.</p>
+    </section>
+  </main>
+
+  <!-- Footer links return to the shop view and label this as a demo. -->
+  <footer><a class="brand footer-brand" href="#" (click)="$event.preventDefault(); view = 'shop'">softgoods<span class="brand-dot">.</span></a><span>Objects for everyday living</span><span>Demo storefront</span></footer>
+</div>
